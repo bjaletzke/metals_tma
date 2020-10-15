@@ -1,0 +1,278 @@
+---
+title: "Trading Strategy: TMA in Metal Commodities Markets"
+subtitle: "CA01 - Investment Fundamentals, Group Project"
+author: "Group 8 - Benedikt Jaletzke"
+date: "12/10/2020"
+abstract: "Triangular Moving Averages in Metal Commodities Markets for Consistent Long-Only Returns"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+PLEASE USE THIS VERSION
+# Official Checklist:
+- Introduction
+- Economic Rationale
+- Data (Sources)
+- Method Used
+  - Technical Indicator
+  - Market
+- Main Findings
+- Appendix 
+
+
+# Introduction
+
+The idea for this group project was to come up with a strategy that either expoited an arbitrage opportunity in the market, or represents another form of hedge fund strategy. Our group decided to focus on using technical indicators. Within this area, we specifically chose moving averages, and as a suitable market for their application settled on metal commodities.
+
+
+# Economic Rationale
+
+
+# Method Used
+## Technical Indicator
+
+From https://uc-r.github.io/ts_moving_averages
+
+The concept of simple moving averages can be extended to taking moving averages of moving averages. This technique is often employed with an even number of data points so that the final product is symmetric around each point. 
+An even-numbered moving average is unbalanced, and for our purposes, the unbalancing will be in favor of more recent observations. For example, to calculate a 4-MA, the equation is as follows:
+^yt=(yt−1+yt+yt+1+yt+2)/4
+
+To make the moving average symmetric (and therefore more accurate), we then take a 2-MA of the 4-MA to create a 2 x 4-MA. For the 2-MA step, we average the current and previous moving averages, thus resulting in an overall estimate of:
+
+```{r}
+# rolling averages. Useful for later calculations
+# k = number of days used in average
+metals_tma <- combined_data %>% 
+  mutate(index_ma01 = rollmean(index, k=1, fill=NA),
+         index_ma05 = rollmean(index, k=90, fill=NA))
+```
+
+### Finding appropriate Modifiers for the TMA
+The next challenge lies in finding the appropriate time periods for the TMA. As it is an average of averages, we have to consider which of these will give us the best return.
+## Market Choice
+(Maybe show correlation between all metals? Simple GGPairs)
+
+### Correlation Graph for the Choice Metals
+```{r}
+ggcorr(combined_indices) + labs(
+  title = "Correlation between Metal Prices")
+
+ggpairs(wind)
+```
+
+# Results
+
+## Charts
+
+## Data
+
+
+# Appendix
+## Libraries
+```{r}
+library(lubridate)
+library(tidyverse)
+library(GGally)
+library(skimr)
+library(lubridate)
+library(fpp2) 
+library(zoo)
+library(PerformanceAnalytics)
+```
+
+
+## Importing Indices - Metals
+```{r}
+# Data from Finaeon
+precious <- read.csv("data/sp_precmet.csv", skip = 2)
+industrial <- read.csv("data/sp_indmet.csv", skip = 2)
+
+# S&P Precious Metals Index
+precious_1 <- precious %>%
+  mutate(date = as.Date(precious$Date, format = "%m/%d/%Y")) %>% 
+  filter(date > as.Date("1989-12-31")) %>% 
+  subset(data = precious, select = -c(Date, Open, High, Low)) %>% 
+  rename(close = Close, 
+         ticker = Ticker) %>% 
+  mutate(index = close/close[1])
+
+# S&P Industrial Metals Index
+industrial_1 <- industrial %>%
+  mutate(date = as.Date(industrial$Date, format = "%m/%d/%Y")) %>% 
+  filter(date > as.Date("1989-12-31")) %>% 
+  subset(data = industrial, select = -c(Date, Open, High, Low)) %>% 
+  rename(close = Close, 
+         ticker = Ticker) %>% 
+  mutate(index = close/close[1])
+
+# Combining both indices into one frame, cleaning it up a little
+combined_indices <- full_join(industrial_1, precious_1, by = "date") %>% 
+  rename(precious_metals = index.y,
+         pm_close = close.y,
+         ind_close = close.x,
+         industrial_metals = index.x) %>% 
+  subset(select = -c(ticker.x, ticker.y))
+
+# Simple Plot
+ggplot() + 
+  geom_line(data = combined_indices, aes(x=date, y=precious_metals), color = "red") + 
+  geom_line(data = combined_indices, aes(x=date, y=industrial_metals), color = "green")
+
+# Weights
+eq_w_pm <- 0.5
+eq_w_ind <- 1-eq_w_pm
+
+# calculate index
+wind <- combined_indices %>% 
+  mutate(eq_ind = w_pm * precious_metals + w_ind * industrial_metals) %>% 
+  subset(select = c(date, eq_ind))
+# Index plot vs. Separate Lines
+ggplot() + 
+  geom_line(data = wind, aes(x=date, y=eq_ind), color="red")+ 
+  geom_line(data = combined_indices, aes(x=date, y=precious_metals), color = "blue") + 
+  geom_line(data = combined_indices, aes(x=date, y=industrial_metals), color = "green")
+```
+
+## Importing and Filtering Equities Indices for Comparison Purposes
+```{r}
+# Importing Index Data
+# Filtering: Dates, Unused Indices (keeping )
+global_indices <- read.csv("data/global.csv", skip = 51)
+
+global_indices_filtered <- global_indices %>%
+  mutate(date = as.Date(global_indices$Date, format = "%Y/%m/%d")) %>% 
+  filter(date > as.Date("1989-12-31")) %>% 
+  subset(data = global_indices, select = c(Date, X_NDXD_Close, X_DJA3D_Close, X_GDAXIPD_Close, X_SPXD_Close))
+```
+
+
+# Old Stuff
+## OLD - Equal Weighted Separate Metals
+```{r}
+# Equally Weighted Portfolio of Metals
+w_pal <- 0.2
+w_plat <- 0.2
+w_ni <- 0.2
+w_cop <- 0.2
+w_tin <- 0.2
+
+weighted_index = sep_ind_data %>% 
+  mutate(big5_index = (w_pal * palladium_ind + w_plat * platinum_ind + w_ni * nickel_ind + w_cop * copper_ind)) %>% 
+  subset(select = c(date, big5_index))
+  
+ggplot()+geom_line(data = combined_data, aes(x=date, y=index, color=ticker)) + geom_line(data = weighted_index, aes(x=date, y=big5_index)) +geom_line() +scale_y_log10()
+
+```
+
+## OLD - Overview Graph
+### Development of the Metal prices over time (indexed).
+```{r, fig.width = 11}
+#Basic Index/Time Graph
+ggplot(combined_data, aes(x=date, y=index, color=ticker)) + 
+  geom_line() +
+  scale_color_discrete(
+    name = "Metal",
+    labels = c("Copper", "Tin", "Platinum", "Palladium", "S&P Index", "Nickel")) +
+  theme_minimal() +
+  scale_y_log10() +
+  labs(
+    title = "Metal Commodities Price Development",
+    subtitle = "Indexed Jan 1st, 1989",
+    x = "Date", 
+    y = "Index",
+    caption = "Source: Finaeon")
+
+unique(combined_data$ticker)
+```
+
+
+
+
+## OLD - Importing Metal Commodities Prices
+```{r}
+copper <- read.csv("data/copper.csv", skip = 2)
+tin <- read.csv("data/tin.csv", skip = 2)
+platinum <- read.csv("data/platinum.csv", skip = 2)
+palladium <- read.csv("data/palladium.csv", skip = 2)
+nickel <- read.csv("data/nickel.csv", skip = 2)
+```
+
+### Data Cleaning of the Metals Returns
+```{r}
+# Transforming Data to be more Usable for this analysis: 
+# Filtering Dates, unused columns, cleaning up names
+
+copper_1 <- copper %>%
+  mutate(date = as.Date(copper$Date, format = "%m/%d/%Y")) %>% 
+  filter(date > as.Date("1989-12-31")) %>% 
+  subset(data = copper, select = -c(Date, Open, High, Low)) %>% 
+  rename(close = Close, 
+         ticker = Ticker) %>% 
+  mutate(index = close/close[1])
+
+tin_1 <- tin %>%
+  mutate(date = as.Date(tin$Date, format = "%m/%d/%Y")) %>% 
+  filter(date > as.Date("1989-12-31")) %>% 
+  subset(data = tin, select = -c(Date, Open, High, Low)) %>% 
+  rename(close = Close, 
+         ticker = Ticker) %>% 
+  mutate(index = close/close[1])
+
+platinum_1 <- platinum %>%
+  mutate(date = as.Date(platinum$Date, format = "%m/%d/%Y")) %>% 
+  filter(date > as.Date("1989-12-31")) %>%  
+  subset(data = platinum, select = -c(Date, Open, High, Low)) %>% 
+  rename(close = Close, 
+         ticker = Ticker) %>% 
+  mutate(index = close/close[1])
+
+palladium_1 <- palladium %>%
+  mutate(date = as.Date(palladium$Date, format = "%m/%d/%Y")) %>% 
+  filter(date > as.Date("1989-12-31")) %>% 
+  subset(data = palladium, select = -c(Date, Open, High, Low)) %>% 
+  rename(close = Close, 
+         ticker = Ticker) %>% 
+  mutate(index = close/close[1])
+
+nickel_1 <- nickel %>%
+  mutate(date = as.Date(nickel$Date, format = "%m/%d/%Y")) %>% 
+  filter(date > as.Date("1989-12-31")) %>% 
+  subset(data = nickel, select = -c(Date, Open, High, Low)) %>% 
+  rename(close = Close, 
+         ticker = Ticker) %>% 
+  mutate(index = close/close[1])
+
+
+
+
+
+# Combining Data into one data frame
+
+p1 <- full_join(copper_1, tin_1, by = c("date", "ticker", "close", "index"))
+p2 <- full_join(p1, platinum_1, by = c("date", "ticker", "close", "index"))
+p3 <- full_join(p2, palladium_1, by = c("date", "ticker", "close", "index"))
+p4 <- full_join(p3, precious_1, by = c("date", "ticker", "close", "index"))
+combined_data <- full_join(p4, nickel_1, by = c("date", "ticker", "close", "index"))
+
+#One data frame, separate indices
+p1_2 <- left_join(copper_1, tin_1, by = "date")
+p2_2 <- left_join(p1_2, platinum_1, by = "date")
+p3_2 <- left_join(p2_2, palladium_1, by = "date")
+sep_ind_data <- left_join(p3_2, nickel_1, by = "date")
+
+sep_ind_data <-  sep_ind_data %>% 
+  rename(copper_ind=index.x , 
+         tin_ind=index.y,
+         platinum_ind=index.x.x,
+         palladium_ind=index.y.y,
+         nickel_ind=index)
+
+sep_ind_data <- sep_ind_data %>% 
+ subset(data = sep_ind_data, select = -c(ticker.x, ticker.y, ticker.y.y, ticker.x.x))
+sep_ind_data <- sep_ind_data %>% 
+  subset(data = sep_ind_data, select = -c(close.x, close.y, close.y.y, close.x.x))
+sep_ind_data <- sep_ind_data %>% 
+  subset(data = sep_ind_data, select = -c(ticker, close))
+```
