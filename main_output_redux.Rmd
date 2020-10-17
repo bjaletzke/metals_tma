@@ -79,6 +79,27 @@ stats <- combined_indices %>%
 ```
 
 ```{r}
+# weighted portfolio function
+w_portfolio <- function(dataset, 
+                        w_1, 
+                        index_1, 
+                        index_2){
+  w_2 <- 1 - w_1
+  portfolio <- dataset %>% 
+  mutate(data = dataset, index = (w_1 * dataset$index_1 + w_2 * dataset$index_2))
+}
+
+# I don't understand why this does not work...
+equal <- w_portfolio(
+  combined_indices, 
+  0.5, 
+  precious_metals, 
+  industrial_metals)
+
+```
+
+
+```{r}
 # 50/50 Portfolio
 # Weights
 eq_w_pm <- 0.5
@@ -231,40 +252,18 @@ library(PerformanceAnalytics)
 precious_base <- read.csv("data/sp_precmet.csv", skip = 2)
 industrial_base <- read.csv("data/sp_indmet.csv", skip = 2)
 
-copper_base <- read.csv("data/separate metals/copper.csv", skip = 2)
-
 clean_data <-  function(x){
-  y <- lazy(x)
-  y %>%
-  mutate(date = as.Date(y$Date, format = "%m/%d/%Y")) %>% 
+  x %>%
+  mutate(date = as.Date(x$Date, format = "%m/%d/%Y")) %>% 
   filter(date > as.Date("1989-12-31")) %>% 
-  subset(data = y, select = -c(Date, Open, High, Low)) %>% 
+  subset(data = x, select = -c(Date, Open, High, Low)) %>% 
   rename(close = Close, 
          ticker = Ticker) %>% 
   mutate(index = close/close[1])
 }
 
-clean_data(copper)
-
-equities <- import_gfd("data/equities_indices.csv")
-
-# S&P Precious Metals Index
-precious_1 <- precious_base %>%
-  mutate(date = as.Date(precious_base$Date, format = "%m/%d/%Y")) %>% 
-  filter(date > as.Date("1989-12-31")) %>% 
-  subset(data = precious_base, select = -c(Date, Open, High, Low)) %>% 
-  rename(close = Close, 
-         ticker = Ticker) %>% 
-  mutate(index = close/close[1])
-
-# S&P Industrial Metals Index
-industrial_1 <- industrial %>%
-  mutate(date = as.Date(industrial_base$Date, format = "%m/%d/%Y")) %>% 
-  filter(date > as.Date("1989-12-31")) %>% 
-  subset(data = industrial_base, select = -c(Date, Open, High, Low)) %>% 
-  rename(close = Close, 
-         ticker = Ticker) %>% 
-  mutate(index = close/close[1])
+precious_1 <- clean_data(precious_base)
+industrial_1 <- clean_data(industrial_base)
 
 # Combining both indices into one frame, cleaning it up a little
 combined_indices <- full_join(industrial_1, precious_1, by = "date") %>% 
