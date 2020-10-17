@@ -74,18 +74,16 @@ eq_w_ind <- 1-eq_w_pm
 
 # calculate index
 eq_w_ind <- combined_indices %>% 
-  mutate(eq_ind = eq_w_pm * precious_metals + eq_w_ind * industrial_metals) %>% 
-  subset(select = c(date, eq_ind))
+  mutate(eq_weight = eq_w_pm * precious_metals + eq_w_ind * industrial_metals) %>% 
+  subset(select = c(date, eq_weight))
 
-# join with main dataframe
-combined_indices_join <- right_join(eq_w_ind, combined_indices, by = "date") %>% 
- # subset(select = -c(ind_close, pm_close )) %>% 
-  gather(index, value, eq_ind:precious_metals)
+# combine to larger dataframe
+indices_equal <- right_join(eq_w_ind, combined_indices, by = "date") %>% 
+ subset(select = -c(ind_close, pm_close )) %>% 
+  subset(select = -c(return_ind, return_prec))
 
-# Index plot vs. Separate Lines
-ggplot() + 
-  geom_line(data = combined_indices, aes(x=date, y=eq_ind, color = 
 ```
+
 
 ```{r}
 # Efficient Portfolio
@@ -95,17 +93,38 @@ stats <- combined_indices %>%
             corr_ind = cor(return_ind[-1],return_prec[-1]))
 
 sh_r_max <- function(x){
-  (x*stats$mean_ind+(1-x)*stats$mean_prec)/sqrt(x^2*stats$sd_ind^2+(1-x)^2*stats$sd_prec^2+2*x(1-x)*stats$sd_ind*stats$sd_prec*stats$corr_ind)
+  (x*stats$mean_ind+(1-x)*stats$mean_prec)/sqrt(x^2*stats$sd_ind^2+(1-x)^2*stats$sd_prec^2+2*x*(1-x)*stats$sd_ind*stats$sd_prec*stats$corr_ind)
 }
-
+# calcukating optimal weights for industrial index
 opt_port <- optimize(f = sh_r_max, lower = -1,upper = 1, maximum = TRUE)
 
-weight_ind <- opt_port$objective
+# assigning weights to the two indices
+weight_industrial <- opt_port$objective
+weight_precious <- 1-weight_industrial
+
+# creating efficient(theoretically) index
+efficient_index <- combined_indices %>% 
+  mutate(efficient = weight_industrial * industrial_metals + weight_precious * precious_metals) %>% 
+  subset(select = c(date, efficient))
+
+# combining the four portfolios into one
+portfolios <- left_join(indices_equal, efficient_index, by = "date") %>% 
+  gather(index, value, eq_weight:efficient)
 ```
 
-```{r}
+```{r, fig.width = 11}
 # Combination Graph
+ggplot() + 
+  geom_line(data = portfolios, aes(x=date, y=value, color = index)) + 
+  scale_color_brewer(palette = "Spectral") + 
+  theme_minimal() + 
+  labs(title = "Price Development of the Different Combinations of Metals Indices",
+       caption = "Source: Finaeon, S&P as of October 2020",
+       x = "Date",
+       y="Index (100=1/1/1990")
 ```
+
+The graph shows clearly that the most efficient portfolio is one in which the heaviest weighting is placed on the precious metals component of the portfolio, which is not surprising given it's outperformance of the industrial metals class, especially over the last ten years. 
 
 
 ## Technical Indicator
