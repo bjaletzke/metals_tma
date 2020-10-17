@@ -31,6 +31,70 @@ The idea for this group project was to come up with a strategy that either expoi
 
 
 # Method Used
+
+## Portfolio Allocation
+
+In order to ideally work within the metals markets, the portfolio will consist ocmpletely of two already existing indices that are calculated on a daily basis, the S&P Precious Metals Index, consisting of [TBC] and the S&P Industrial Metals, containing [TBC]. By using these two indices as our baseline instead of attempting to construct our own, we can create a two-security portfolio with different weights to find the best possible results. As for the choice of allocations, we tried different combination weights of the indices. 
+
+To construct the efficient portfolio, we had to calculate the return and variance of teh two separate indices. 
+```{r}
+# Return Variance Calculation
+# Combining both indices into one frame, cleaning it up a little
+combined_indices <- full_join(industrial_1, precious_1, by = "date") %>% 
+  rename(precious_metals = index.y,
+         pm_close = close.y,
+         ind_close = close.x,
+         industrial_metals = index.x) %>% 
+  subset(select = -c(ticker.x, ticker.y)) %>%
+  head(-2)
+  
+
+#return and std
+ind_price <- na.approx(zoo(combined_indices$ind_close, combined_indices$date))
+prec_price <- na.approx(zoo(combined_indices$pm_close, combined_indices$date))
+
+rets_industry <- Return.calculate(xts(ind_price),  method = "discrete")
+names(rets_industry) <- "return_ind"
+rets_prec <- Return.calculate(xts(prec_price),  method = "discrete")
+names(rets_prec) <- "return_prec"
+
+combined_indices <- cbind(combined_indices, rets_industry, rets_prec)
+
+stats <- combined_indices %>% 
+  summarise(mean_ind = mean(return_ind[-1]), mean_prec = mean(return_prec[-1]),
+            sd_ind = sd(return_ind[-1]), sd_prec = sd(return_prec[-1]))
+```
+
+
+```{r}
+# 50/50 Portfolio
+w_ind <- 0.5
+w_prec <- 1-w_ind
+
+equal_portfolio <-  precious_metals * w_prec + industrial_metals * w_ind
+```
+
+```{r}
+# Efficient Portfolio
+stats <- combined_indices %>% 
+  summarise(mean_ind = mean(return_ind[-1]), mean_prec = mean(return_prec[-1]),
+            sd_ind = sd(return_ind[-1]), sd_prec = sd(return_prec[-1]),
+            corr_ind = cor(return_ind[-1],return_prec[-1]))
+
+sh_r_max <- function(x){
+  (x*stats$mean_ind+(1-x)stats$mean_prec)/sqrt(x^2*stats$sd_ind^2+(1-x)^2*stats$sd_prec^2+2*x(1-x)*stats$sd_ind*stats$sd_prec*stats$corr_ind)
+}
+
+opt_port <- optimize(f = sh_r_max, lower = -1,upper = 1, maximum = TRUE)
+
+weight_ind <- opt_port$objective
+```
+
+```{r}
+# Combination Graph
+```
+
+
 ## Technical Indicator
 
 From https://uc-r.github.io/ts_moving_averages
@@ -50,7 +114,9 @@ metals_tma <- combined_data %>%
 ```
 
 ### Finding appropriate Modifiers for the TMA
+
 The next challenge lies in finding the appropriate time periods for the TMA. As it is an average of averages, we have to consider which of these will give us the best return.
+
 ## Market Choice
 (Maybe show correlation between all metals? Simple GGPairs)
 
