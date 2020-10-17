@@ -271,3 +271,133 @@ sep_ind_data <- sep_ind_data %>%
 ```
 
 
+
+
+# Old Stuff
+## OLD - Equal Weighted Separate Metals
+```{r}
+# Equally Weighted Portfolio of Metals
+w_pal <- 0.2
+w_plat <- 0.2
+w_ni <- 0.2
+w_cop <- 0.2
+w_tin <- 0.2
+
+weighted_index = sep_ind_data %>% 
+  mutate(big5_index = (w_pal * palladium_ind + w_plat * platinum_ind + w_ni * nickel_ind + w_cop * copper_ind)) %>% 
+  subset(select = c(date, big5_index))
+  
+ggplot()+geom_line(data = combined_data, aes(x=date, y=index, color=ticker)) + geom_line(data = weighted_index, aes(x=date, y=big5_index)) +geom_line() +scale_y_log10()
+
+```
+
+## OLD - Overview Graph
+### Development of the Metal prices over time (indexed).
+```{r, fig.width = 11}
+#Basic Index/Time Graph
+ggplot(combined_data, aes(x=date, y=index, color=ticker)) + 
+  geom_line() +
+  scale_color_discrete(
+    name = "Metal",
+    labels = c("Copper", "Tin", "Platinum", "Palladium", "S&P Index", "Nickel")) +
+  theme_minimal() +
+  scale_y_log10() +
+  labs(
+    title = "Metal Commodities Price Development",
+    subtitle = "Indexed Jan 1st, 1989",
+    x = "Date", 
+    y = "Index",
+    caption = "Source: Finaeon")
+
+unique(combined_data$ticker)
+```
+
+
+
+
+## OLD - Importing Metal Commodities Prices
+```{r}
+copper <- read.csv("data/copper.csv", skip = 2)
+tin <- read.csv("data/tin.csv", skip = 2)
+platinum <- read.csv("data/platinum.csv", skip = 2)
+palladium <- read.csv("data/palladium.csv", skip = 2)
+nickel <- read.csv("data/nickel.csv", skip = 2)
+```
+
+### Data Cleaning of the Metals Returns
+```{r}
+# Transforming Data to be more Usable for this analysis: 
+# Filtering Dates, unused columns, cleaning up names
+
+copper_1 <- copper %>%
+  mutate(date = as.Date(copper$Date, format = "%m/%d/%Y")) %>% 
+  filter(date > as.Date("1989-12-31")) %>% 
+  subset(data = copper, select = -c(Date, Open, High, Low)) %>% 
+  rename(close = Close, 
+         ticker = Ticker) %>% 
+  mutate(index = close/close[1])
+
+tin_1 <- tin %>%
+  mutate(date = as.Date(tin$Date, format = "%m/%d/%Y")) %>% 
+  filter(date > as.Date("1989-12-31")) %>% 
+  subset(data = tin, select = -c(Date, Open, High, Low)) %>% 
+  rename(close = Close, 
+         ticker = Ticker) %>% 
+  mutate(index = close/close[1])
+
+platinum_1 <- platinum %>%
+  mutate(date = as.Date(platinum$Date, format = "%m/%d/%Y")) %>% 
+  filter(date > as.Date("1989-12-31")) %>%  
+  subset(data = platinum, select = -c(Date, Open, High, Low)) %>% 
+  rename(close = Close, 
+         ticker = Ticker) %>% 
+  mutate(index = close/close[1])
+
+palladium_1 <- palladium %>%
+  mutate(date = as.Date(palladium$Date, format = "%m/%d/%Y")) %>% 
+  filter(date > as.Date("1989-12-31")) %>% 
+  subset(data = palladium, select = -c(Date, Open, High, Low)) %>% 
+  rename(close = Close, 
+         ticker = Ticker) %>% 
+  mutate(index = close/close[1])
+
+nickel_1 <- nickel %>%
+  mutate(date = as.Date(nickel$Date, format = "%m/%d/%Y")) %>% 
+  filter(date > as.Date("1989-12-31")) %>% 
+  subset(data = nickel, select = -c(Date, Open, High, Low)) %>% 
+  rename(close = Close, 
+         ticker = Ticker) %>% 
+  mutate(index = close/close[1])
+
+
+
+
+
+# Combining Data into one data frame
+
+p1 <- full_join(copper_1, tin_1, by = c("date", "ticker", "close", "index"))
+p2 <- full_join(p1, platinum_1, by = c("date", "ticker", "close", "index"))
+p3 <- full_join(p2, palladium_1, by = c("date", "ticker", "close", "index"))
+p4 <- full_join(p3, precious_1, by = c("date", "ticker", "close", "index"))
+combined_data <- full_join(p4, nickel_1, by = c("date", "ticker", "close", "index"))
+
+#One data frame, separate indices
+p1_2 <- left_join(copper_1, tin_1, by = "date")
+p2_2 <- left_join(p1_2, platinum_1, by = "date")
+p3_2 <- left_join(p2_2, palladium_1, by = "date")
+sep_ind_data <- left_join(p3_2, nickel_1, by = "date")
+
+sep_ind_data <-  sep_ind_data %>% 
+  rename(copper_ind=index.x , 
+         tin_ind=index.y,
+         platinum_ind=index.x.x,
+         palladium_ind=index.y.y,
+         nickel_ind=index)
+
+sep_ind_data <- sep_ind_data %>% 
+ subset(data = sep_ind_data, select = -c(ticker.x, ticker.y, ticker.y.y, ticker.x.x))
+sep_ind_data <- sep_ind_data %>% 
+  subset(data = sep_ind_data, select = -c(close.x, close.y, close.y.y, close.x.x))
+sep_ind_data <- sep_ind_data %>% 
+  subset(data = sep_ind_data, select = -c(ticker, close))
+```
