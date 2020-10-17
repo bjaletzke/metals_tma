@@ -7,10 +7,6 @@ abstract: "Triangular Moving Averages in Metal Commodities Markets for Consisten
 output: html_document
 ---
 
-```{r}
-install.packages("languageserver")
-```
-
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -234,6 +230,23 @@ library(PerformanceAnalytics)
 # I would love to implement the GFD API in order to automatically pull this data in from their site. Maybe if I can get this done before Monday night I'll add it in. Would be cool to do this. 
 precious_base <- read.csv("data/sp_precmet.csv", skip = 2)
 industrial_base <- read.csv("data/sp_indmet.csv", skip = 2)
+
+copper_base <- read.csv("data/separate metals/copper.csv", skip = 2)
+
+clean_data <-  function(x){
+  y <- lazy(x)
+  y %>%
+  mutate(date = as.Date(y$Date, format = "%m/%d/%Y")) %>% 
+  filter(date > as.Date("1989-12-31")) %>% 
+  subset(data = y, select = -c(Date, Open, High, Low)) %>% 
+  rename(close = Close, 
+         ticker = Ticker) %>% 
+  mutate(index = close/close[1])
+}
+
+clean_data(copper)
+
+equities <- import_gfd("data/equities_indices.csv")
 
 # S&P Precious Metals Index
 precious_1 <- precious_base %>%
