@@ -7,10 +7,15 @@ abstract: "Triangular Moving Averages in Metal Commodities Markets for Consisten
 output: html_document
 ---
 
+```{r}
+install.packages("languageserver")
+```
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-PLEASE USE THIS VERSION
+
 # Official Checklist:
 - Introduction
 - Economic Rationale
@@ -20,21 +25,20 @@ PLEASE USE THIS VERSION
   - Market
 - Main Findings
 - Future Potential Analyses
-  - Metal COmpanies in Combination with SUE Earnings
+  - Metal Cmpanies in Combination with SUE Earnings
   - Mixing in Other Asset Classes (Agriculture, Energy etc.)
 - Appendix 
 
-####
+
 # See how the portfolio would do with S&P instead of Industrial Metals
 # Or Agriculture
 # Do that once ALL the calculations are finished. That way it should be a copy/paste job with fresh data. 
-####
+
 
 
 # Introduction
 
 The idea for this group project was to come up with a strategy that either expoited an arbitrage opportunity in the market, or represents another form of hedge fund strategy. Our group decided to focus on using technical indicators. Within this area, we specifically chose moving averages, and as a suitable market for their application settled on metal commodities.
-
 
 # Economic Rationale
 
@@ -52,7 +56,7 @@ In order to ideally work within the metals markets, the portfolio will consist o
 To construct the efficient portfolio, we had to calculate the return and variance of the two separate indices.
 
 ```{r}
-# Return Variance Calculation
+# Return - Variance Calculation
 # Combining both indices into one frame, cleaning it up a little
 combined_indices <- full_join(industrial_1, precious_1, by = "date") %>% 
   rename(precious_metals = index.y,
@@ -62,7 +66,6 @@ combined_indices <- full_join(industrial_1, precious_1, by = "date") %>%
   subset(select = -c(ticker.x, ticker.y)) %>%
   head(-2)
   
-
 #return and std
 ind_price <- na.approx(zoo(combined_indices$ind_close, combined_indices$date))
 prec_price <- na.approx(zoo(combined_indices$pm_close, combined_indices$date))
@@ -78,7 +81,6 @@ stats <- combined_indices %>%
   summarise(mean_ind = mean(return_ind[-1]), mean_prec = mean(return_prec[-1]),
             sd_ind = sd(return_ind[-1]), sd_prec = sd(return_prec[-1]))
 ```
-
 
 ```{r}
 # 50/50 Portfolio
@@ -125,7 +127,11 @@ efficient_index <- combined_indices %>%
 portfolios <- left_join(indices_equal, efficient_index, by = "date") %>% 
   gather(index, values, eq_weight:efficient)
 
-# statistics (try)
+```
+
+### Portfolio Statistics 
+```{r}
+# statistics (try) - STANISLAV!!! (AKA: Please Help on this!) We should create summary stats for the 4 portolios here to display in the output
 stats_portfolio <- portfolios %>% 
   summarise(mean_ind = mean(return_ind[-1]), mean_prec = mean(return_prec[-1]),
             sd_ind = sd(return_ind[-1]), sd_prec = sd(return_prec[-1]),
@@ -158,6 +164,14 @@ An even-numbered moving average is unbalanced, and for our purposes, the unbalan
 
 To make the moving average symmetric (and therefore more accurate), we then take a 2-MA of the 4-MA to create a 2 x 4-MA. For the 2-MA step, we average the current and previous moving averages, thus resulting in an overall estimate of:
 
+
+
+### Finding appropriate Modifiers for the TMA
+
+The main challenge lies in finding the appropriate time periods for the TMA. As it is an average of averages, we have to consider which of these will give us the best return. 
+The best TMA will be one that fits the trend well enough, but can still react to changes in the underlying assets quickly enough to be useful.
+
+To compute a basic TMA, we can use the ma() function and take a look at the output, in this case with a 30 day compound.
 ```{r, fig.width = 10}
 # rolling averages. Useful for later calculations
 # k = number of days used in average
@@ -183,9 +197,11 @@ ggplot(pf_subset) +
 
 ```
 
-### Finding appropriate Modifiers for the TMA
+In order to see the efficiency of any portfolio, we have to implement buy and sell signals. In our case, as described earlier, the idea would be to buy when the TMA is passed upwards, and to sell & short when the line crosses below. 
 
-The next challenge lies in finding the appropriate time periods for the TMA. As it is an average of averages, we have to consider which of these will give us the best return. The challenge in using a TMA lies in finding a value that fits the trend well enough, but can still react to changes in the underlying assets quickly enough to be useful.
+This would give us a return of [TBA]
+
+Using the optimize function we employed to get the portfolio weights earlier, we can attempt to maximise the output of our TMA line on both portfolios. 
 
 ## Market Choice
 ```{r, fig.width = 5}
@@ -215,23 +231,24 @@ library(PerformanceAnalytics)
 ## Importing Indices - Metals
 ```{r}
 # Data from Finaeon
-precious <- read.csv("data/sp_precmet.csv", skip = 2)
-industrial <- read.csv("data/sp_indmet.csv", skip = 2)
+# I would love to implement the GFD API in order to automatically pull this data in from their site. Maybe if I can get this done before Monday night I'll add it in. Would be cool to do this. 
+precious_base <- read.csv("data/sp_precmet.csv", skip = 2)
+industrial_base <- read.csv("data/sp_indmet.csv", skip = 2)
 
 # S&P Precious Metals Index
-precious_1 <- precious %>%
-  mutate(date = as.Date(precious$Date, format = "%m/%d/%Y")) %>% 
+precious_1 <- precious_base %>%
+  mutate(date = as.Date(precious_base$Date, format = "%m/%d/%Y")) %>% 
   filter(date > as.Date("1989-12-31")) %>% 
-  subset(data = precious, select = -c(Date, Open, High, Low)) %>% 
+  subset(data = precious_base, select = -c(Date, Open, High, Low)) %>% 
   rename(close = Close, 
          ticker = Ticker) %>% 
   mutate(index = close/close[1])
 
 # S&P Industrial Metals Index
 industrial_1 <- industrial %>%
-  mutate(date = as.Date(industrial$Date, format = "%m/%d/%Y")) %>% 
+  mutate(date = as.Date(industrial_base$Date, format = "%m/%d/%Y")) %>% 
   filter(date > as.Date("1989-12-31")) %>% 
-  subset(data = industrial, select = -c(Date, Open, High, Low)) %>% 
+  subset(data = industrial_base, select = -c(Date, Open, High, Low)) %>% 
   rename(close = Close, 
          ticker = Ticker) %>% 
   mutate(index = close/close[1])
@@ -254,10 +271,10 @@ ggplot() +
 ```{r}
 # Importing Index Data
 # Filtering: Dates, Unused Indices (keeping )
-global_indices <- read.csv("data/global.csv", skip = 51)
+global_equities_indices <- read.csv("data/global.csv", skip = 51)
 
-global_indices_filtered <- global_indices %>%
-  mutate(date = as.Date(global_indices$Date, format = "%Y/%m/%d")) %>% 
+gei_filtered <- global_equities_indices %>%
+  mutate(date = as.Date(global_equities_indices$Date, format = "%Y/%m/%d")) %>% 
   filter(date > as.Date("1989-12-31")) %>% 
-  subset(data = global_indices, select = c(Date, X_NDXD_Close, X_DJA3D_Close, X_GDAXIPD_Close, X_SPXD_Close))
+  subset(data = global_equities_indices, select = c(Date, X_NDXD_Close, X_DJA3D_Close, X_GDAXIPD_Close, X_SPXD_Close))
 ```
