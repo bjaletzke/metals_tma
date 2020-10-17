@@ -24,6 +24,12 @@ PLEASE USE THIS VERSION
   - Mixing in Other Asset Classes (Agriculture, Energy etc.)
 - Appendix 
 
+####
+# See how the portfolio would do with S&P instead of Industrial Metals
+# Or Agriculture
+# Do that once ALL the calculations are finished. That way it should be a copy/paste job with fresh data. 
+####
+
 
 # Introduction
 
@@ -43,7 +49,8 @@ The idea for this group project was to come up with a strategy that either expoi
 
 In order to ideally work within the metals markets, the portfolio will consist ocmpletely of two already existing indices that are calculated on a daily basis, the S&P Precious Metals Index, consisting of [TBC] and the S&P Industrial Metals, containing [TBC]. By using these two indices as our baseline instead of attempting to construct our own, we can create a two-security portfolio with different weights to find the best possible results. As for the choice of allocations, we tried different combination weights of the indices. 
 
-To construct the efficient portfolio, we had to calculate the return and variance of the two separate indices. 
+To construct the efficient portfolio, we had to calculate the return and variance of the two separate indices.
+
 ```{r}
 # Return Variance Calculation
 # Combining both indices into one frame, cleaning it up a little
@@ -116,7 +123,7 @@ efficient_index <- combined_indices %>%
 
 # combining the four portfolios into one
 portfolios <- left_join(indices_equal, efficient_index, by = "date") %>% 
-  gather(index, value, eq_weight:efficient)
+  gather(index, values, eq_weight:efficient)
 
 # statistics (try)
 stats_portfolio <- portfolios %>% 
@@ -128,16 +135,17 @@ stats_portfolio <- portfolios %>%
 ```{r, fig.width = 11, echo=FALSE}
 # Combination Graph
 ggplot() + 
-  geom_line(data = portfolios, aes(x=date, y=value, color = index)) + 
+  geom_line(data = portfolios, aes(x=date, y=values, color = index)) + 
   scale_color_brewer(palette = "Spectral") + 
   theme_minimal() + 
   labs(title = "Price Development of the Different Combinations of Metals Indices",
        caption = "Source: Finaeon, S&P as of October 2020",
        x = "Date",
-       y="Index (100=1/1/1990")
+       y="Index (100=1/1/1990") +
+  scale_color_discrete(name = "Series", labels = c("Efficient Portfolio", "Equal Weights", "Industrial Metals", "Precious Metals"))
 ```
 
-The graph shows clearly that the most efficient portfolio is one in which the heaviest weighting is placed on the precious metals component of the portfolio, which is not surprising given it's outperformance of the industrial metals class, especially over the last ten years. 
+The graph shows clearly that the most efficient portfolio is one in which the heaviest weighting is placed on the precious metals component of the portfolio, which is not surprising given it's outperformance of the industrial metals class, especially over the last ten years. For a further analysis, this raises the obvious question of whether a more efficient portfolio could be constructed using different indices/components that would diversify the returns away from this sector. 
 
 
 ## Technical Indicator
@@ -150,12 +158,29 @@ An even-numbered moving average is unbalanced, and for our purposes, the unbalan
 
 To make the moving average symmetric (and therefore more accurate), we then take a 2-MA of the 4-MA to create a 2 x 4-MA. For the 2-MA step, we average the current and previous moving averages, thus resulting in an overall estimate of:
 
-```{r}
+```{r, fig.width = 10}
 # rolling averages. Useful for later calculations
 # k = number of days used in average
-metals_tma <- combined_data %>% 
-  mutate(index_ma01 = rollmean(index, k=1, fill=NA),
-         index_ma05 = rollmean(index, k=90, fill=NA))
+
+portfolios_tma <- portfolios %>% 
+  mutate(ma4 = ma(values, order = 30, centre = TRUE))
+
+pf_subset <- portfolios_tma %>% 
+  #filter(index == "eq_weight" || index == "efficient")
+  filter(index %in% c("eq_weight", "efficient"))
+
+unique(pf_subset$index)
+
+# 30 Day TMAs over the daily data for the two composite portfolios
+ggplot(pf_subset) +
+  geom_line(aes(x = date, y=values, group = index), 
+            #linetype = "twodash", 
+            alpha = 0.8, fill = "black", size = 0.2) +
+  geom_line(aes(x = date, y=ma4, color = index)) + 
+  scale_y_log10() +
+  scale_color_discrete(name = "Series", labels = c("Efficient Portfolio", "Equal Weights")) + 
+  scale_color_brewer(palette="Dark2")
+
 ```
 
 ### Finding appropriate Modifiers for the TMA
@@ -171,9 +196,7 @@ combined_indices %>%
 
 As the above corelation graph shows, and intuition would confirm, there is an extreme correlation between the different classes of metals. This is despite hte fact that gold, which makes up a large part of the precious metals index, is traded less for its value sas a metal from an utilitarian perspective and more because of it's economic value as a criiss/hedging asset. 
 
-# Results
-
-## Charts
+# Results / Main Findings
 
 # Appendix
 ## Libraries
