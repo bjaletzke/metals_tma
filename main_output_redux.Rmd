@@ -1,9 +1,9 @@
 ---
 title: "Trading Strategy: TMA in Metal Commodities Markets"
 subtitle: "CA01 - Investment Fundamentals, Group Project"
-author: "Group 8 - Benedikt Jaletzke"
+author: "Group 8 - Benedikt Jaletzke, Stanislas Markov, Mark Negodyuk, Kateryna Tarasova, Olivia Zhang, Tom Tian"
 date: "12/10/2020"
-abstract: "Triangular Moving Averages in Metal Commodities Markets for Consistent Long-Only Returns"
+abstract: "Triangular Moving Averages in Metal Commodities Markets for Consistent Long/Short Returns"
 output: html_document
 ---
 
@@ -19,6 +19,9 @@ PLEASE USE THIS VERSION
   - Technical Indicator
   - Market
 - Main Findings
+- Future Potential Analyses
+  - Metal COmpanies in Combination with SUE Earnings
+  - Mixing in Other Asset Classes (Agriculture, Energy etc.)
 - Appendix 
 
 
@@ -29,6 +32,10 @@ The idea for this group project was to come up with a strategy that either expoi
 
 # Economic Rationale
 
+# Data
+## Papers
+- [S&P GSCI Precious Metals Index](https://www.spglobal.com/spdji/en/indices/commodities/sp-gsci-precious-metals/#overview)
+- [S&P GSCI Industrial Metals Index](https://www.spglobal.com/spdji/en/indices/commodities/sp-gsci-industrial-metals/#overview)
 
 # Method Used
 
@@ -36,7 +43,7 @@ The idea for this group project was to come up with a strategy that either expoi
 
 In order to ideally work within the metals markets, the portfolio will consist ocmpletely of two already existing indices that are calculated on a daily basis, the S&P Precious Metals Index, consisting of [TBC] and the S&P Industrial Metals, containing [TBC]. By using these two indices as our baseline instead of attempting to construct our own, we can create a two-security portfolio with different weights to find the best possible results. As for the choice of allocations, we tried different combination weights of the indices. 
 
-To construct the efficient portfolio, we had to calculate the return and variance of teh two separate indices. 
+To construct the efficient portfolio, we had to calculate the return and variance of the two separate indices. 
 ```{r}
 # Return Variance Calculation
 # Combining both indices into one frame, cleaning it up a little
@@ -110,9 +117,15 @@ efficient_index <- combined_indices %>%
 # combining the four portfolios into one
 portfolios <- left_join(indices_equal, efficient_index, by = "date") %>% 
   gather(index, value, eq_weight:efficient)
+
+# statistics (try)
+stats_portfolio <- portfolios %>% 
+  summarise(mean_ind = mean(return_ind[-1]), mean_prec = mean(return_prec[-1]),
+            sd_ind = sd(return_ind[-1]), sd_prec = sd(return_prec[-1]),
+            corr_ind = cor(return_ind[-1],return_prec[-1]))
 ```
 
-```{r, fig.width = 11}
+```{r, fig.width = 11, echo=FALSE}
 # Combination Graph
 ggplot() + 
   geom_line(data = portfolios, aes(x=date, y=value, color = index)) + 
@@ -147,25 +160,20 @@ metals_tma <- combined_data %>%
 
 ### Finding appropriate Modifiers for the TMA
 
-The next challenge lies in finding the appropriate time periods for the TMA. As it is an average of averages, we have to consider which of these will give us the best return.
+The next challenge lies in finding the appropriate time periods for the TMA. As it is an average of averages, we have to consider which of these will give us the best return. The challenge in using a TMA lies in finding a value that fits the trend well enough, but can still react to changes in the underlying assets quickly enough to be useful.
 
 ## Market Choice
-(Maybe show correlation between all metals? Simple GGPairs)
-
-### Correlation Graph for the Choice Metals
-```{r}
-ggcorr(combined_indices) + labs(
-  title = "Correlation between Metal Prices")
-
-ggpairs(wind)
+```{r, fig.width = 5}
+combined_indices %>% 
+  subset(select = c(precious_metals, industrial_metals)) %>% 
+  ggpairs(combined_indices)
 ```
+
+As the above corelation graph shows, and intuition would confirm, there is an extreme correlation between the different classes of metals. This is despite hte fact that gold, which makes up a large part of the precious metals index, is traded less for its value sas a metal from an utilitarian perspective and more because of it's economic value as a criiss/hedging asset. 
 
 # Results
 
 ## Charts
-
-## Data
-
 
 # Appendix
 ## Libraries
