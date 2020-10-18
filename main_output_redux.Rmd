@@ -3,16 +3,15 @@ title: "Trading Strategy: TMA in Metal Commodities Markets"
 subtitle: "CA01 - Investment Fundamentals, Group Project"
 author: "Group 8 - Benedikt Jaletzke, Stanislas Markov, Mark Negodyuk, Kateryna Tarasova, Olivia Zhang, Tom Tian"
 date: "12/10/2020"
-abstract: "Triangular Moving Averages in Metal Commodities Markets for Consistent Long/Short Returns"
+abstract: "Triangular Moving Averages in Metal Commodities Markets for Consistent Long Short Returns"
 output: html_document
 ---
-
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 ## Libraries
-```{r, echo = FALSE}
+```{r, include = FALSE}
 library(lubridate)
 library(tidyverse)
 library(GGally)
@@ -23,6 +22,11 @@ library(zoo)
 library(PerformanceAnalytics)
 library(reshape2)
 ```
+# TO DO:
+- Formulas in LaTeX Format
+- Buy/Sell
+- Propa Write Up, Innit
+- Footnotes
 
 # Official Checklist:
 - Introduction
@@ -38,7 +42,7 @@ library(reshape2)
 - Appendix 
 
 #### NOTES
-#### See how the portfolio would do with S&P instead of Industrial Metals
+#### See how the portfolio would do with S\&P instead of Industrial Metals
 #### Or Agriculture
 #### Do that once ALL the calculations are finished. That way it should be a copy/paste job with fresh data. 
 ####
@@ -105,12 +109,10 @@ The idea for this group project was to come up with a strategy that either explo
 
 ## Portfolio Allocation
 
-In order to ideally work within the metals markets, the portfolio will consist ocmpletely of two already existing indices that are calculated on a daily basis, the S&P Precious Metals Index, consisting of [TBC] and the S&P Industrial Metals, containing [TBC]. By using these two indices as our baseline instead of attempting to construct our own, we can create a two-security portfolio with different weights to find the best possible results. As for the choice of allocations, we tried different combination weights of the indices. 
+In order to ideally work within the metals markets, the portfolio will consist ocmpletely of two already existing indices that are calculated on a daily basis, the S\&P Precious Metals Index, consisting of [TBC] and the S\&P Industrial Metals, containing [TBC]. By using these two indices as our baseline instead of attempting to construct our own, we can create a two-security portfolio with different weights to find the best possible results. As for the choice of allocations, we tried different combination weights of the indices. 
 
 To construct the efficient portfolio, we had to calculate the return and variance of the two separate indices.
-
 ```{r}
-
 # Return - Variance Calculation for the Separate Metals Indices
 
 ind_price <- na.approx(zoo(combined_indices$ind_close, combined_indices$date))
@@ -130,27 +132,6 @@ stats_solo <- combined_indices %>%
 
 ```
 
-```{r}
-# Weighted Portfolio Function - Work in Progress
-w_portfolio <- function(dataset, 
-                        w_1, 
-                        index_1, 
-                        index_2){
-  library(tidyverse)
-  w_2 <- 1 - w_1
-  portfolio <- dataset %>% 
-  mutate(index = (w_1 * dataset$index_1 + w_2 * dataset$index_2))
-}
-
-# I don't understand why this does not work...
-equal <- w_portfolio(
-  combined_indices, 
-  0.5, 
-  precious_metals, 
-  industrial_metals)
-# Like, I know the error is one that I am making. Still, the code above looks valid, and I would just like it to run.
-# Pease I just wanted a cool function...
-```
 
 ```{r}
 # Efficient Portfolio
@@ -228,7 +209,6 @@ stats_eff <- portfolios %>%
 
 ```{r}
 # Sharpe Ratios
-
 # Assumed Risk Free Rate, based on current 10-Year US Treasuries 
 risk_free <- 0.0076
 
@@ -245,17 +225,20 @@ sharpe_efficient <- sharpe(stats_eff, mean_eff, sd_eff)
 sharpe_equal <-sharpe(stats_eq, mean_eq, sd_eq)
 # But it does work for these two clowns...
 
-sharpe_ind <- (stats_individual$mean_ind - risk_free / 365)/stats_individual$sd_ind
-sharpe_prec <- (stats_individual$mean_prec - (risk_free / 365)) / stats_individual$sd_prec
+sharpe_ind <- (stats_solo$mean_ind - risk_free / 365)/stats_solo$sd_ind
+sharpe_prec <- (stats_solo$mean_prec - (risk_free / 365)) / stats_solo$sd_prec
 
 er_sd <- cbind(stats_solo, stats_eq, stats_eff) %>% 
   gather(mean_return, values_er, c(mean_ind, mean_prec, mean_eff, mean_eq)) %>% 
-  gather(volatility, values_vola, c(sd_ind, sd_prec, sd_eff, sd_eq))
-
+  gather(volatility, values_vola, c(sd_ind, sd_prec, sd_eff, sd_eq)) %>% 
+  rownames_to_column("return") %>% 
+  slice(1, 6, 11, 16) %>% 
+  subset(select = -return) %>% 
+  mutate(values_vola = values_vola * 100) %>%
+  mutate(values_er = values_er * 100)
 
 ggplot(er_sd) + geom_point(aes(x = values_vola, y = values_er, color = mean_return))
 ```
-
 
 
 ```{r}
@@ -264,7 +247,7 @@ portfolios_overview <- left_join(indices_equal, efficient_portfolio, by = "date"
   gather(index, values, eq_weight:efficient)
 ```
 
-### Portfolio Statistics 
+### Portfolio Graph 
 
 ```{r, fig.width = 11, echo=FALSE}
 # Combination Graph
@@ -290,7 +273,10 @@ From https://uc-r.github.io/ts_moving_averages
 
 The concept of simple moving averages can be extended to taking moving averages of moving averages. This technique is often employed with an even number of data points so that the final product is symmetric around each point. 
 An even-numbered moving average is unbalanced, and for our purposes, the unbalancing will be in favor of more recent observations. For example, to calculate a 4-MA, the equation is as follows:
-^yt=(yt−1+yt+yt+1+yt+2)/4
+
+```{r}
+# ^yt=(yt−1+yt+yt+1+yt+2)/4
+```
 
 To make the moving average symmetric (and therefore more accurate), we then take a 2-MA of the 4-MA to create a 2 x 4-MA. For the 2-MA step, we average the current and previous moving averages, thus resulting in an overall estimate of:
 
@@ -328,9 +314,12 @@ ggplot(pf_subset) +
 ```
 
 In order to see the efficiency of any portfolio, we have to implement buy and sell signals. In our case, as described earlier, the idea would be to buy when the TMA is passed upwards, and to sell & short when the line crosses below. 
+To do this, we can use the code suggested [on the QuantInst Blog](https://blog.quantinsti.com/an-example-of-a-trading-strategy-coded-in-r/)
 
 ```{r}
-# In order to find the trade points, we have to know the dates where the line is crossed 
+# Signal 
+# signal = Lag(ifelse(macd$macd < macd$signal, -1, 1))
+
 ```
 
 
@@ -345,26 +334,20 @@ combined_indices %>%
   ggpairs(combined_indices)
 ```
 
-As the above corelation graph shows, and intuition would confirm, there is an extreme correlation between the different classes of metals. This is despite hte fact that gold, which makes up a large part of the precious metals index, is traded less for its value sas a metal from an utilitarian perspective and more because of it's economic value as a criiss/hedging asset. 
+As the above corelation graph shows, and intuition would confirm, there is an extreme correlation between the different classes of metals. This is despite hte fact that gold, which makes up a large part of the precious metals index, is traded less for its value sas a metal from an utilitarian perspective and more because of it's economic value as a crisis/hedging asset. 
 
 # Results / Main Findings
 
+
 # Appendix
-```{r}
-# FUNCTIONS
-
-
-
-```
-
 ## Importing and Filtering Equities Indices for Comparison Purposes
 ```{r}
 # Importing Index Data
 # Filtering: Dates, Unused Indices (keeping )
-global_equities_indices <- read.csv("data/global.csv", skip = 51)
+#global_equities_indices <- read.csv("data/global.csv", skip = 51)
 
-gei_filtered <- global_equities_indices %>%
-  mutate(date = as.Date(global_equities_indices$Date, format = "%Y/%m/%d")) %>% 
-  filter(date > as.Date("1989-12-31")) %>% 
-  subset(data = global_equities_indices, select = c(Date, X_NDXD_Close, X_DJA3D_Close, X_GDAXIPD_Close, X_SPXD_Close))
+#gei_filtered <- global_equities_indices %>%
+#  mutate(date = as.Date(global_equities_indices$Date, format = "%Y/%m/%d")) %>% 
+#  filter(date > as.Date("1989-12-31")) %>% 
+#  subset(data = global_equities_indices, select = c(Date, X_NDXD_Close, X_DJA3D_Close, X_GDAXIPD_Close, X_SPXD_Close))
 ```
