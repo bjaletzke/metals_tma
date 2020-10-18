@@ -124,7 +124,7 @@ names(rets_prec) <- "return_prec"
 
 combined_indices <- cbind(combined_indices, rets_industry, rets_prec)
 
-stats_individual <- combined_indices %>% 
+stats_solo <- combined_indices %>% 
   summarise(mean_ind = mean(return_ind[-1]), mean_prec = mean(return_prec[-1]),
             sd_ind = sd(return_ind[-1]), sd_prec = sd(return_prec[-1]))
 
@@ -238,8 +238,8 @@ sharpe <- function(dataset, mean, sd){
 }
 
 # Sharpe Ratios for the Individual Indices
-sharpe_ind <- sharpe(stats_individual, mean_ind, sd_ind)
-sharpe_prec <- sharpe(dataset = stats_individual, mean = mean_prec, sd = sd_prec)
+sharpe_ind <- sharpe(stats_solo, mean_ind, sd_ind)
+sharpe_prec <- sharpe(dataset = stats_solo, mean = mean_prec, sd = sd_prec)
 # FOR SOME F***ING REASON THE FORMULA ABOVE DOES NOT WORK FOR THE INDIVIDUAL SHARPE RATIOS. I COULD THROW MY LAPTOP AGAINST A WALL
 sharpe_efficient <- sharpe(stats_eff, mean_eff, sd_eff)
 sharpe_equal <-sharpe(stats_eq, mean_eq, sd_eq)
@@ -248,6 +248,12 @@ sharpe_equal <-sharpe(stats_eq, mean_eq, sd_eq)
 sharpe_ind <- (stats_individual$mean_ind - risk_free / 365)/stats_individual$sd_ind
 sharpe_prec <- (stats_individual$mean_prec - (risk_free / 365)) / stats_individual$sd_prec
 
+er_sd <- cbind(stats_solo, stats_eq, stats_eff) %>% 
+  gather(mean_return, values_er, c(mean_ind, mean_prec, mean_eff, mean_eq)) %>% 
+  gather(volatility, values_vola, c(sd_ind, sd_prec, sd_eff, sd_eq))
+
+
+ggplot(er_sd) + geom_point(aes(x = values_vola, y = values_er, color = mean_return))
 ```
 
 
