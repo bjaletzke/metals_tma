@@ -1,3 +1,5 @@
+THIS FILE WILL BE PASTED INTO A ' CLEAN # VERSION WITHOUT THE SILLY COMMENTS. DON'T WORRY.
+
 ---
 title: "Trading Strategy: TMA in Metal Commodities Markets"
 subtitle: "CA01 - Investment Fundamentals, Group Project"
@@ -14,6 +16,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80), tidy=TRUE)
 ```
 ## Libraries
 ```{r, include = FALSE}
@@ -26,7 +29,8 @@ library(fpp2)
 library(zoo)
 library(PerformanceAnalytics)
 library(reshape2)
-library(RColorBrewer)
+library(stats)
+library(quantmod)
 ```
 # SECTION TO BE REMOVED:
 ## TO DO:
@@ -68,7 +72,9 @@ import_data <-  function(source){
   mutate(index = close/close[1])
 }
 
-# I would love to implement the GFD API in order to automatically pull this data in from their site. Maybe if I can get this done before Monday night I'll add it in. Would be cool to do this. 
+# I would love to implement the GFD API in order to automatically pull this data 
+# in from their site. Maybe if I can get this done before Monday 
+# night I'll add it in. Would be cool to do this. 
 precious_1 <- import_data("data/sp_precmet.csv")
 industrial_1 <- import_data("data/sp_indmet.csv")
 
@@ -96,8 +102,7 @@ ggplot(combined_one) +
   scale_x_date(date_breaks = "12 months", date_labels =  "%Y") +
   theme_minimal() +
   theme(axis.text.x=element_text(angle=60, hjust=1)) +
-  scale_color_brewer(palette = "Viridis") +
-  scale_color_discrete(name = "Series", labels= c("Precious Metals", "Industrial Metals"))
+  scale_color_discrete(name = "Series", labels= c("Industrial Metals", "Precious Metals"))
 ```
 
 
@@ -150,7 +155,9 @@ calc_efficient <- combined_indices %>%
 
 # Function to calculate the Weighting of Industrial Metals in the Final Portfolio
 sh_r_max <- function(x){
-  (x*calc_efficient$mean_ind+(1-x)*calc_efficient$mean_prec)/sqrt(x^2*calc_efficient$sd_ind^2+(1-x)^2*calc_efficient$sd_prec^2+2*x*(1-x)*calc_efficient$sd_ind*calc_efficient$sd_prec*calc_efficient$corr_ind)
+  (x*calc_efficient$mean_ind+(1-x)*calc_efficient$mean_prec)
+  /sqrt(x^2*calc_efficient$sd_ind^2+(1-x)^2*calc_efficient$sd_prec^2+2*x*(1-x)
+  *calc_efficient$sd_ind*calc_efficient$sd_prec*calc_efficient$corr_ind)
 }
 
 # Calculating optimal weights for industrial index
@@ -162,7 +169,10 @@ weight_precious <- 1-weight_industrial
 
 # creating (theoretically) efficient combination
 efficient_portfolio <- combined_indices %>% 
-  mutate(efficient = weight_industrial * industrial_metals + weight_precious * precious_metals) %>% 
+  mutate(
+    efficient = 
+      weight_industrial * industrial_metals + 
+      weight_precious * precious_metals) %>% 
   subset(select = c(date, efficient))
 ```
 
@@ -212,7 +222,6 @@ stats_eff <- portfolios %>%
             sd_eff = sd(return_eff[-1]))
 ```
 
-
 ```{r}
 # Sharpe Ratios
 # Assumed Risk Free Rate, based on current 10-Year US Treasuries 
@@ -226,7 +235,8 @@ sharpe <- function(dataset, mean, sd){
 # Sharpe Ratios for the Individual Indices
 sharpe_ind <- sharpe(stats_solo, mean_ind, sd_ind)
 sharpe_prec <- sharpe(dataset = stats_solo, mean = mean_prec, sd = sd_prec)
-# FOR SOME F***ING REASON THE FORMULA ABOVE DOES NOT WORK FOR THE INDIVIDUAL SHARPE RATIOS. I COULD THROW MY LAPTOP AGAINST A WALL
+# The function does not work with the individual portfolios. I suspect that this
+# is due to them sharing a dataset. Will try to fix this if I have time
 sharpe_efficient <- sharpe(stats_eff, mean_eff, sd_eff)
 sharpe_equal <-sharpe(stats_eq, mean_eq, sd_eq)
 # But it does work for these two clowns...
@@ -246,15 +256,12 @@ er_sd <- cbind(stats_solo, stats_eq, stats_eff) %>%
 ggplot(er_sd) + geom_point(aes(x = values_vola, y = values_er, color = mean_return))
 ```
 
-```{r}
+### Portfolio Graph 
+```{r, fig.width = 11, echo=FALSE}
 # combining the four portfolios into one
 portfolios_overview <- left_join(indices_equal, efficient_portfolio, by = "date") %>% 
   gather(index, values, eq_weight:efficient)
-```
 
-### Portfolio Graph 
-
-```{r, fig.width = 11, echo=FALSE}
 # Combination Graph
 ggplot() + 
   geom_line(data = portfolios_overview, aes(x=date, y=values, color = index)) + 
@@ -277,27 +284,30 @@ The graph shows clearly that the most efficient portfolio is one in which the he
 From https://uc-r.github.io/ts_moving_averages
 
 The concept of simple moving averages can be extended to taking moving averages of moving averages. This technique is often employed with an even number of data points so that the final product is symmetric around each point. 
+
+INSERT PAPERS HERE THAT TALK ABOUT THE APPLICABILITY OF THE TMA 
+Naved and Srivastava (2015) showed that in their dataset, moving averages outperformed buy-and-hold strategies.
+> An optimization technique is used to find the most profitable trading system among all the moving averages. The results show that trading rules based short term simple moving average generate more profit with less drawdown and outperform buy-and-hold strategy for almost all type of moving averages.
+
+This result, combined with the relative simplicity dan accompanying flexibility of moving averages makes them an attractive tool for analysis and trading.
+
 An even-numbered moving average is unbalanced, and for our purposes, the unbalancing will be in favor of more recent observations. For example, to calculate a 4-MA, the equation is as follows:
-
-```{r}
-# LaTeX formula for TMA (wont be inside R Block)
-# ^yt=(yt−1+yt+yt+1+yt+2)/4
-```
-
-To make the moving average symmetric (and therefore more accurate), we then take a 2-MA of the 4-MA to create a 2 x 4-MA. For the 2-MA step, we average the current and previous moving averages, thus resulting in an overall estimate of:
+$$\hat{y}_{n} = \frac{y_{t-2} + y_{t-1} + y_{t} + y_{t+1} + y_{t+2}}{5}$$
+To make the moving average symmetric (and therefore more accurate), we then take a 2-MA of the 4-MA to create a 2 x 4-MA. For the 2-MA step, we average the current and previous moving averages.
+$$\hat{y}_{n} = \frac{1}{8}y_{t-2} + \frac{1}{4}y_{t-1} + \frac{1}{4}y_{t} + \frac{1}{4}y_{t+1} + \frac{1}{8}y_{t+2} $$
+This general formula can be adapted for the exact period that is desired as the output, using R (below). 
 
 ### Finding appropriate Modifiers for the TMA
 
 The main challenge lies in finding the appropriate time periods for the TMA. As it is an average of averages, we have to consider which of these will give us the best return. 
 The best TMA will be one that fits the trend well enough, but can still react to changes in the underlying assets quickly enough to be useful.
-
 To compute a basic TMA, we can use the ma() function and take a look at the output, in this case with a 60 day compound.
 ```{r, fig.width = 10}
 # rolling averages. Useful for later calculations
 # k = number of days used in average
 
 portfolios_tma <- portfolios_overview %>% 
-  mutate(ma4 = ma(values, order = 60, centre = TRUE))
+  mutate(tma60 = ma(values, order = 60, centre = TRUE))
 
 pf_subset <- portfolios_tma %>% 
   #filter(index == "eq_weight" || index == "efficient")
@@ -309,7 +319,7 @@ pf_subset <- portfolios_tma %>%
 ggplot(pf_subset) +
   geom_line(aes(x = date, y=values, group = index), 
             alpha = 0.8, fill = "black", size = 0.2) +
-  geom_line(aes(x = date, y=ma4, color = index)) + 
+  geom_line(aes(x = date, y=tma60, color = index)) + 
   scale_color_brewer(palette="Dark2", name = "Series", labels = c("Efficient Portfolio", "Equal Weights")) +
   scale_x_date(date_breaks = "12 months", date_labels =  "%Y") +
   theme_minimal() +
@@ -320,14 +330,57 @@ In order to see the efficiency of any portfolio, we have to implement buy and se
 To do this, we can use the code suggested [on the QuantInst Blog](https://blog.quantinsti.com/an-example-of-a-trading-strategy-coded-in-r/)
 
 ```{r, include = FALSE}
-# Signal 
-# signal = Lag(ifelse(macd$macd < macd$signal, -1, 1))
+# just trying somehting
+pf_lag <-  na.omit(lag(pf_subset))
+
+# Simple Buy/Sell Signals
+pf_lag$buy_signal <- ifelse(pf_lag$tma60 > pf_lag$values, 1, 0)
+pf_lag$sell_signal <- ifelse(pf_lag$tma60 < pf_lag$values, -1, 0)
+
+# pf_lag$buy_signal_2 <- ifelse(
+#   lag(pf_lag$buy_signal) == 1, 0, 
+#   ifelse(pf_lag$tma60 > pf_lag$values, 1, 0))
+```
+In order to trade on these signals, we have to know how much money we are willing to invest on a given trade. TO do this, we will apply a simple version of the kelly criterion (Khanna, 2016), and use its static value as the input for how much of our portfolio we are betting on a trade. 
+```{r}
+# Kelly Criterion
+
+# Trade based on Signals
+portfolio_purse <- 100
+
+
+
 ```
 
 
 This would give us a return of [TBA]
 
 Using the optimize function we employed to get the portfolio weights earlier, we can attempt to maximise the output of our TMA line on both portfolios. 
+
+## DEMA - Double Exponential Moving Average
+The TMA comes with a double edged sword of reacting sslowly to price changes, letting one exploit a trend for longer, but also risking greater exopsure to losses. A double exponential moving average does not run this risk, eliminating most of the lag that persists in moving-averages models. 
+
+```{r}
+ggplot(pf_subset) +
+  geom_line(aes(x = date, y=values, group = index), 
+            alpha = 0.8, fill = "black", size = 0.2) +
+  geom_line(aes(x = date, y=ma4, color = index)) + 
+  scale_color_brewer(palette="Dark2", name = "Series", labels = c("Efficient Portfolio", "Equal Weights")) +
+  scale_x_date(date_breaks = "12 months", date_labels =  "%Y") +
+  theme_minimal() +
+  theme(axis.text.x=element_text(angle=60, hjust=1)) + 
+  addDEMA(n=10, on=1 col="pink")
+
+DEMA(pf_subset$index, n=10, v=1)
+```
+
+
+DEMA vs TMA Graph on the Portfolios
+```{r}
+# DEMA vs TMA
+```
+
+
 
 ## Market Choice
 ```{r, fig.width = 5}
@@ -336,12 +389,12 @@ combined_indices %>%
   ggpairs(combined_indices)
 ```
 
-As the above corelation graph shows, and intuition would confirm, there is an extreme correlation between the different classes of metals. This is despite hte fact that gold, which makes up a large part of the precious metals index, is traded less for its value sas a metal from an utilitarian perspective and more because of it's economic value as a crisis/hedging asset. 
+As the above correlation graph shows, and intuition would confirm, there is an extreme correlation between the different classes of metals. This is despite the fact that gold, which makes up a large part of the precious metals index, is traded less for its value as a metal from an utilitarian perspective and more because of it's economic value as a crisis/hedging asset. 
 
 # Results / Main Findings
 
-
 # Appendix
+## Bibliography
 ## Importing and Filtering Equities Indices for Comparison Purposes
 ```{r, include = FALSE}
 # Importing Index Data
