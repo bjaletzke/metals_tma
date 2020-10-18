@@ -1,10 +1,15 @@
 ---
 title: "Trading Strategy: TMA in Metal Commodities Markets"
 subtitle: "CA01 - Investment Fundamentals, Group Project"
-author: "Group 8 - Benedikt Jaletzke, Stanislas Markov, Mark Negodyuk, Kateryna Tarasova, Olivia Zhang, Tom Tian"
+author: |
+        | Group 8
+        | Benedikt Jaletzke, Stanislas Markov, Mark Negodyuk,
+        | Kateryna Tarasova, Olivia Zhang, Tom Tian
 date: "12/10/2020"
 abstract: "Triangular Moving Averages in Metal Commodities Markets for Consistent Long Short Returns"
-output: html_document
+output:
+  pdf_document:
+    latex_engine: xelatex
 ---
 
 ```{r setup, include=FALSE}
@@ -21,14 +26,16 @@ library(fpp2)
 library(zoo)
 library(PerformanceAnalytics)
 library(reshape2)
+library(RColorBrewer)
 ```
-# TO DO:
+# SECTION TO BE REMOVED:
+## TO DO:
 - Formulas in LaTeX Format
 - Buy/Sell
 - Propa Write Up, Innit
 - Footnotes
 
-# Official Checklist:
+## Official Checklist:
 - Introduction
 - Economic Rationale
 - Data (Sources)
@@ -131,7 +138,6 @@ stats_solo <- combined_indices %>%
             sd_ind = sd(return_ind[-1]), sd_prec = sd(return_prec[-1]))
 
 ```
-
 
 ```{r}
 # Efficient Portfolio
@@ -240,7 +246,6 @@ er_sd <- cbind(stats_solo, stats_eq, stats_eff) %>%
 ggplot(er_sd) + geom_point(aes(x = values_vola, y = values_er, color = mean_return))
 ```
 
-
 ```{r}
 # combining the four portfolios into one
 portfolios_overview <- left_join(indices_equal, efficient_portfolio, by = "date") %>% 
@@ -275,12 +280,11 @@ The concept of simple moving averages can be extended to taking moving averages 
 An even-numbered moving average is unbalanced, and for our purposes, the unbalancing will be in favor of more recent observations. For example, to calculate a 4-MA, the equation is as follows:
 
 ```{r}
+# LaTeX formula for TMA (wont be inside R Block)
 # ^yt=(yt−1+yt+yt+1+yt+2)/4
 ```
 
 To make the moving average symmetric (and therefore more accurate), we then take a 2-MA of the 4-MA to create a 2 x 4-MA. For the 2-MA step, we average the current and previous moving averages, thus resulting in an overall estimate of:
-
-
 
 ### Finding appropriate Modifiers for the TMA
 
@@ -310,16 +314,14 @@ ggplot(pf_subset) +
   scale_x_date(date_breaks = "12 months", date_labels =  "%Y") +
   theme_minimal() +
   theme(axis.text.x=element_text(angle=60, hjust=1))
-
 ```
 
 In order to see the efficiency of any portfolio, we have to implement buy and sell signals. In our case, as described earlier, the idea would be to buy when the TMA is passed upwards, and to sell & short when the line crosses below. 
 To do this, we can use the code suggested [on the QuantInst Blog](https://blog.quantinsti.com/an-example-of-a-trading-strategy-coded-in-r/)
 
-```{r}
+```{r, include = FALSE}
 # Signal 
 # signal = Lag(ifelse(macd$macd < macd$signal, -1, 1))
-
 ```
 
 
@@ -341,7 +343,7 @@ As the above corelation graph shows, and intuition would confirm, there is an ex
 
 # Appendix
 ## Importing and Filtering Equities Indices for Comparison Purposes
-```{r}
+```{r, include = FALSE}
 # Importing Index Data
 # Filtering: Dates, Unused Indices (keeping )
 #global_equities_indices <- read.csv("data/global.csv", skip = 51)
