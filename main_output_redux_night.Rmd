@@ -143,13 +143,11 @@ combined_indices <- cbind(combined_indices, rets_industry, rets_precious)
 
 # Calculating Statistics for the Industrials Index
 stats_industrials <- combined_indices %>% 
-  subset(select = -c(pm_close, precious_metals)) %>% 
   summarise(mean_ind = mean(return_ind[-1]),
             sd_ind = sd(return_ind[-1]))
 
 # Calculating Statistics for the Precious Metals Index
 stats_precious <- combined_indices %>% 
-  subset(select = -c(ind_close, industrial_metals)) %>% 
   summarise(mean_prec = mean(return_prec[-1]),
             sd_prec = sd(return_prec[-1]))
 
@@ -226,6 +224,7 @@ stats_eq <- four_portfolios_main %>%
 
 # Statistics for the Efficient Portfolio
 four_portfolios_main <- cbind(four_portfolios_main, rets_eff)
+
 stats_eff <- four_portfolios_main %>% 
   summarise(mean_eff = mean(return_eff[-1]),
             sd_eff = sd(return_eff[-1]))
@@ -341,51 +340,57 @@ In order to see the performance of any portfolio, we have to implement buy and s
 To do this, we can use the code suggested [on the QuantInst Blog](https://blog.quantinsti.com/an-example-of-a-trading-strategy-coded-in-r/)
 
 ```{r, include = FALSE}
-# just trying something
-pf_lag <-  na.omit(lag(pf_subset))
 
-pf_lag_e <- pf_lag %>% 
-  filter(index %in% "industrial_metals") %>% 
+eq_efficient_clean <-  na.omit(lag(eq_efficient))
+
+efficient_tma_dema <- eq_efficient_clean %>% 
+  filter(index %in% "efficient") %>% 
   mutate(dema = DEMA(values, 20, wilder = TRUE))
 
-pf_lag_e$buy_signal_dema <- ifelse(pf_lag_e$dema < pf_lag_e$values, 1, 0)
-pf_lag_e <-  na.omit(lag(pf_lag_e))
 
+# Buy Signals for DEMA
+efficient_tma_dema$buy_signal_dema <- ifelse(efficient_tma_dema$dema < efficient_tma_dema$values, 1, 0)
+#efficient_tma_dema <-  na.omit(lag(efficient_tma_dema))
 
-# Simple Buy/Sell Signals
-pf_lag_e$buy_signal <- ifelse(pf_lag_e$tma60 < pf_lag_e$values, 1, 0)
+# Buy Signal for TMA
+efficient_tma_dema$buy_signal_tma <- ifelse(efficient_tma_dema$tma100 < efficient_tma_dema$values, 1, 0)
 
 # https://www.jstor.org/stable/43503762?seq=1 - Paper for Gold
 
-above_ma <-  which(pf_lag_e$buy_signal==1)
+# DMA Trading
+above_ma <-  which(efficient_tma_dema$buy_signal_dema==1)
 trades_time <- split(above_ma, cumsum(c(1, diff(above_ma) >= 4)))
 trades_time <- trades_time[sapply(trades_time, length) >= 4]
-trades <- lapply(trades_time, function(x){l <- c(x[4],min(x[length(x)]+4, length(pf_lag_e$values)))})
-returns <- sapply(trades, function(x){(pf_lag_e$values[x[2]]/pf_lag_e$values[x[1]])-1})
-ttl_ret <- sum(returns)
+trades <- lapply(trades_time, function(x){l <- c(x[4],min(x[length(x)]+4, length(efficient_tma_dema$values)))})
+returns_dema <- sapply(trades, function(x){(efficient_tma_dema$values[x[2]]/efficient_tma_dema$values[x[1]])-1})
+ttl_ret_dema <- sum(returns_dema)
 
+ttl_ret_dema
 
-above_ma <-  which(pf_lag_e$buy_signal_dema == 1)
-trades_time <- split(above_ma, cumsum(c(1, diff(above_ma) >= 2)))
-trades_time <- trades_time[sapply(trades_time, length) >= 2]
-trades <- lapply(trades_time, function(x){l <- c(x[2],min(x[length(x)]+2, length(pf_lag_e$values)))})
-returns <- sapply(trades, function(x){(pf_lag_e$values[x[2]]/pf_lag_e$values[x[1]])})
-ttl_ret <- prod(returns)-1
+# TMA Trading
+above_ma <-  which(efficient_tma_dema$buy_signal_tma==1)
+trades_time <- split(above_ma, cumsum(c(1, diff(above_ma) >= 4)))
+trades_time <- trades_time[sapply(trades_time, length) >= 4]
+trades <- lapply(trades_time, function(x){l <- c(x[4],min(x[length(x)]+4, length(efficient_tma_dema$values)))})
+returns_tma <- sapply(trades, function(x){(efficient_tma_dema$values[x[2]]/efficient_tma_dema$values[x[1]])-1})
+ttl_ret_tma <- sum(returns_tma)
 
-kelly <- (stats_eff$mean_eff - (risk_free / 365)) / (stats_eff$sd_eff)^2
-kelly
+ttl_ret_tma
 
-```
-In order to trade on these signals, we have to know how much money we are willing to invest on a given trade. TO do this, we will apply a simple version of the kelly criterion (Khanna, 2016), and use its static value as the input for how much of our portfolio we are betting on a trade. 
-```{r}
-# Kelly Criterion
-# Trade based on Signals
-portfolio_purse <- 100
 ```
 
 ```{r}
 # Plot Daily Returns
+ggplot() + geom_histogram(data = efficient_tma_dma, aes(x = returns_tma))
 ```
+
+
+We can amplify our returns by using a Kelly Criterion Optimized amount of leverage. For a given security, this investment is given by $f^{*} = \frac{\mu - r_{f}}{\sigma^{2}}$
+```{r}
+kelly_crit_eff <- (stats_eff$mean_eff - (risk_free / 365)) / (stats_eff$sd_eff)^2
+kelly_crit_eff
+```
+
 
 
 This would give us a return of [TBA]
