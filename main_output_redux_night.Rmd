@@ -380,8 +380,23 @@ ttl_ret_tma
 ```
 
 ```{r}
-# Plot Daily Returns
-ggplot() + geom_histogram(data = efficient_tma_dma, aes(x = returns_tma))
+# Plot Daily Returns TMA vs DEMA
+DEMA_col <- data.frame(keyName=names(returns_dema), value=returns_dema, row.names=NULL) %>% 
+  rename(dema_returns = value)
+
+TMA_col <- data.frame(keyName=names(returns_tma), value=returns_tma, row.names=NULL) %>% 
+  rename(tma_returns = value)
+
+dailyret <- full_join(TMA_col, DEMA_col) %>% 
+  gather(key = indicator, value = return, tma_returns:dema_returns) %>% 
+  subset(select = -keyName)
+
+ggplot() + geom_point(data = dailyret, aes(x = return, y= return, color = indicator))
+
+ggplot() + 
+  geom_density(data = dailyret, aes(x = return, fill = indicator), alpha = 0.6) + 
+  scale_fill_brewer(type = "div", palette = "Spectral", name = "Signal", labels = c("DEMA", "TMA 100")) + 
+  theme_minimal()
 ```
 
 
@@ -393,39 +408,10 @@ kelly_crit_eff
 
 
 
-This would give us a return of [TBA]
-
-Using the optimize function we employed to get the portfolio weights earlier, we can attempt to maximise the output of our TMA line on both portfolios. 
-
-## DEMA - Double Exponential Moving Average
-The TMA comes with a double edged sword of reacting slowly to price changes, letting one exploit a trend for longer, but also risking greater exopsure to losses. A double exponential moving average does not run this risk, eliminating most of the lag that persists in moving-averages models. 
-
-```{r}
-ggplot(pf_subset) +
-  geom_line(aes(x = date, y=values, group = index), 
-            alpha = 0.8, fill = "black", size = 0.2) +
-  geom_line(aes(x = date, y=ma4, color = index)) + 
-  scale_color_brewer(palette="Dark2", name = "Series", labels = c("Efficient Portfolio", "Equal Weights")) +
-  scale_x_date(date_breaks = "12 months", date_labels =  "%Y") +
-  theme_minimal() +
-  theme(axis.text.x=element_text(angle=60, hjust=1)) + 
-
-DEMA(pf_subset$index, n=10, v=1)
-```
-
-
-DEMA vs TMA Graph on the Portfolios
-```{r}
-# DEMA vs TMA
-
-```
-
-
-
 ## Market Choice
 ```{r, fig.width = 5}
-combined_indices %>% 
-  subset(select = c(precious_metals, industrial_metals)) %>% 
+combined_indices %>%
+  subset(select = c(precious_metals, industrial_metals)) %>%
   ggpairs(combined_indices)
 ```
 
@@ -435,6 +421,7 @@ As the above correlation graph shows, and intuition would confirm, there is an e
 
 # Appendix
 ## Bibliography
+
 ## Importing and Filtering Equities Indices for Comparison Purposes
 ```{r, include = FALSE}
 # Importing Index Data
